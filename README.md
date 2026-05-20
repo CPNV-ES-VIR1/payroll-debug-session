@@ -195,5 +195,5 @@ Connection: keep-alive
 X-Powered-By: Express
 ETag: W/"2f9-NDqpuLwtyTT4/CPc7/RKw6PSGU4"
 
-[{"id":1,"name":"Davis","firstname":"Elijah","phoneNumber":"+1-944-867-1271","emailAddress":"elijah.davis@mail.com","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":2,"name":"Harris","firstname":"Hannah","phoneNumber":"+1-692-603-8405","emailAddress":"hannah.harris@testmail.org","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":3,"name":"Jackson","firstname":"Sophia","phoneNumber":"+1-784-336-8217","emailAddress":"sophia.jackson@mail.com","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":4,"name":"Anderson","firstname":"Emma","phoneNumber":"+1-620-679-4966","emailAddress":"emma.anderson@testmail.org","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"}]
+[...]                          ---> liste contenant 4 clients
 ```
