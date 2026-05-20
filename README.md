@@ -56,6 +56,25 @@ Load key "devopsteam99-bastion-srv.pem": bad permissions
 devopsteam99@dev.bastion.vir1.cld.education: Permission denied (publickey).
 ```
 
+* Avertissement lorsque l'empreinte de l'instance a changé
+
+L'infrastructure AWS va être redéployée après chaque étape. Vous obtiendrez de votre client ssh un avertissement de ce type:
+
+```
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+```
+
+Pour nettoyer le fichier `know_hosts`, la commande suivante vous y aidera:
+
+```
+ssh-keygen -f '<yourPath>/.ssh/known_hosts' -R '[localhost]:9022'
+```
+
 #### Processus pour initier les connexions
 
 * Se connecter au bastion
