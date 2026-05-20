@@ -2,266 +2,198 @@
 
 ## Introduction
 
-This project is dedicated to learning how to deploy a microservices-type application, involving an API gateway, various business microservices, and an isolated database on a third party.
+Ce projet a pour objectif d'entraîner le déploiement d'une infrastructure docker compose dans un environnement de "staging" tel que l'on pourrait le trouver dans un projet réel.
 
-Here is a visual representation of the infrastructure:
+Les contraintes d'accès, les restrictions de droits et la collaboration avec un OPS seront ainsi expérimenté.
 
-![infra](./docs/infra.png)
+## Les rôles
+
+Les techniciens sont impliqués dans des actions de détection de pannes, de debug et aident ainsi l'OPS a détecté la source d'erreur.
+
+L'ops quant-à-lui sera responsable de déploier l'infrastructure (niveau IaaS), de livrer les accès aux techniciens et d'offrir un niveau de visiblité des différentes règles de sécurité pour aider le DEV à comprendre comment son infrastructure docker compose s'intègre au sein de l'IaaS.
+
+Voici une vue d'ensemble de l'infrastructure IaaS et l'intégration du docker compose.
+
+![Infra](./docs/infra.png)
 
 ---
 
 
 ### BACKLOG
 
-*Step 01 - Customers*
+*Step 00 - Pris en main de l'infrastructure*
 
-* Update project folder structure
-* [Get microservice](https://etml-es-devops.s3.eu-west-1.amazonaws.com/customers.zip)
-* Update Docker compose and nginx.conf
-* Test the new service
+#### Prérequis
 
-```
-curl -X GET localhost:8080/api/v1/customers
-```
+Chaque équipe dispose d'un canal teams. Au sein de ce canal une archive ayant cette structure a été livrée. Vous devez la récupérer en local.
 
-```
-//expected result
-
-```
-
-
-## How to deploy the app
-
-
-### Clone the repository
-
-To set up the project locally, please create a private fork. In other words, do it without using the GitHub interface.
-
-Start by cloning your repository locally, then add an upstream pointing to my repository.
-
-```
-//expected result
-origin  https://github.com/CPNV-ES-VIR1/<yourRepo>.git (fetch)
-origin  https://github.com/CPNV-ES-VIR1/<yourRepo>.git (push)
-upstream  https://github.com/CPNV-ES-VIR1/<teacherRepo>.git (fetch)
-upstream  https://github.com/CPNV-ES-VIR1/<teacherRepo>.git (push)
-```
-
-### Set env variable
-
-Copy, paste and rename the sample.env in .env and update the value as expected.
-
-### Normal operation
-
-* Create all images
-
-```dockerfile
-docker compose build
-```
-
-Note : The initial build may take several minutes !
+* Structure de l'archive
 
 ```bash
-// expected result
-[+] build 2/2
- ✔ Image payroll-start-point-ms-payroll-employees Built  2.7s
- ✔ Image payroll-start-point-ms-api-gateway       Built  2.7s  
+├── ./connexion-bastion.sh                --> ouvre une connexion sur le bastion et prépare le tunnel ssh
+├── ./connexion-docker-engine.sh          --> ouvre une connexion via le tunnel ssh du bastion vers le docker engine
+├── ./devopsteam99-bastion-srv.pem        --> clé privée pour le bastion (ne pas la publier)
+├── ./devopsteam99-docker-engine.pem      --> clé privée pour le docker-engine (ne pas la publier)
+├── ./devopsteam99-docker-engine.pub      --> clé publique qui a été livrée sur le bastion, au sein de votre utilisateur
 ```
+* Droits sur les clés
 
-```bash
-//docker images
-IMAGE                                        ID             DISK USAGE   CONTENT SIZE   EXTRA
-payroll-start-point-ms-api-gateway:latest         4d334a02816c       92.6MB           26MB        
-payroll-start-point-ms-payroll-employees:latest   41224f2db2f7        472MB          141MB      
-```
+Il est imoportant que les clés soient privées, autrement dit que les permissions du système de fichier soient fixées comme suit:
 
-* Start the infra
+   * 600 sur le dossier contenant les clés (seul le propriétaire peut lire et écrire)
+   * 400 sur chacune des clés (limitation à votre utilisateur, en lecture seule)
 
-```dockerfile
-docker compose up -d
-```
+* Erreur en lien avec les droits
 
 ```
-//expected result
-[+] up 20/20
- ✔ Image mysql:8.0                               Pulled                                                    20.1s
- ✔ Network payroll-start-point_dmz               Created                                                    0.1s
- ✔ Network payroll-start-point_payroll           Created                                                    0.0s
- ✔ Volume payroll-start-point_mysql-payroll-data Created                                                                                                                            0.0s
- ✔ Container ms-payroll-database                 Healthy                                                                                                                           16.5s
- ✔ Container ms-payroll-employees                Healthy                                                   27.1s
- ✔ Container ms-api-gateway                      Started   27.3s
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Permissions 0777 for 'devopsteam99-bastion-srv.pem' are too open.
+It is required that your private key files are NOT accessible by others.
+This private key will be ignored.
+Load key "devopsteam99-bastion-srv.pem": bad permissions
+devopsteam99@dev.bastion.vir1.cld.education: Permission denied (publickey).
 ```
 
+#### Processus pour initier les connexions
+
+* Se connecter au bastion
+
 ```
-//expected container state
-//docker ps -a
-[...]
-CONTAINER ID   IMAGE                                 COMMAND                  CREATED         STATUS                   PORTS                                 NAMES
-f112c5fbbf71   payroll-start-point-ms-api-gateway         "/docker-entrypoint.…"   2 minutes ago    Up About a minute (healthy)   0.0.0.0:80->80/tcp, [::]:80->80/tcp   ms-api-gateway
-b7c5c6abd84c   payroll-start-point-ms-payroll-employees   "java -jar app.jar"      2 minutes ago    Up 2 minutes (healthy)        8080/tcp                              ms-payroll-employees
-1ec90a70e27c   mysql:8.0                                  "docker-entrypoint.s…"   2 minutes ago    Up 2 minutes (healthy)        3306/tcp, 33060/tcp                   ms-payroll-database
-680354997df7   moby/buildkit:buildx-stable-1              "/usr/bin/buildkitd-…"   10 minutes ago   Up 10 minutes                                                       buildx_buildkit_laughing_shamir0
+bash connexion-bastion.sh
 ```
 
 ```
-//expected network config
-//docker network ls
-[...]
-c80bb585a829   bridge                        bridge    local
-5124788c1d74   host                          host      local
-a4203ef5e8cf   none                          null      local
-813b01da0644   payroll-start-point_dmz       bridge    local
-9c925e3cd630   payroll-start-point_payroll   bridge    local
+//résultat attendu
+devopsteamxx@ip-10-0-0-xx:~$ 
+```
+
+* Se connecter au docker-engine
+
+!!!Le tunnel vers le bastion doit être maintenu, il s'agit d'ouvrir une deuxième session ssh!!!
+
+```
+bash connnexion-docker-engine.sh
 ```
 
 ```
-//expected volume config
-//docker volume ls
-[...]
-local     payroll_mysql-payroll-data
+//resultat attendu
+admin@ip-10-0-xx-10
 ```
 
----
+#### Intéragir avec docker
 
-## How to test the app
+Docker a été installé en suivant les bonnes pratiques minimales requises en environnement productif.
 
-* Get all employees (without employees in database)
+* `sudo` devra être mentionné avant chaque commande
+* les données exploitées par `docker` sont stockées sur un disque différent du système d'exploitation
 
-```
-curl -X GET localhost/api/v1/employees
-```
-
-```
-//expected result (no employees)
-[]
-```
-
-* Try to send a request to a microservice that is temporarily down
-
-```
-docker compose down ms-payroll-employees
+``` 
+lsblk
 ```
 
 ```
-[+] down 2/2
- ✔ Container ms-payroll-employees      Removed                    0.2s
- ! Network payroll-start-point_payroll Resource is still in use   0.0s 
+//resultat attendu
+NAME         MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+nvme1n1      259:0    0   15G  0 disk /docker          --> point de montage persistent du volume dédié à Docker
+nvme0n1      259:1    0    8G  0 disk 
+├─nvme0n1p1  259:2    0  7.9G  0 part /
+├─nvme0n1p14 259:3    0    3M  0 part 
+└─nvme0n1p15 259:4    0  124M  0 part /boot/efi
+```
+
+#### Valider le bon fonctionnement de Docker
+
+Vous trouverez à la racine de l'hôte un répertoire `payroll-debug-session` contenant le nécessaire pour déployer notre projet `docker compose`.
+
+* Récupération des dépendances et construction des images personnalisées
+
+```
+sudo docker compose build
 ```
 
 ```
-curl -i -X GET localhost/api/v1/employees/
+//résulta attendu
+[+] build 5/5
+ ✔ Image payroll-debug-session-ms-payroll-employees-get  Built     1.9s
+ ✔ Image payroll-debug-session-ms-payroll-employees-post Built     1.9s
+ ✔ Image payroll-debug-session-ms-payroll-departments    Built     1.9s
+ ✔ Image payroll-debug-session-ms-customers              Built     1.9s
+ ✔ Image payroll-debug-session-ms-api-gateway            Built     1.9s
+```
+
+* Déploiement de la solution
+
+```
+sudo docker compose up -d
 ```
 
 ```
-HTTP/1.1 503 Service Temporarily Unavailable
-Server: nginx/1.29.4
-Date: Fri, 02 Jan 2026 11:04:06 GMT
+[+] up 7/7
+ ✔ Container ms-payroll-employees-database   Healthy               2.2s
+ ✔ Container ms-payroll-employees-post       Healthy              46.2s
+ ✔ Container ms-payroll-departments-database Healthy               2.2s
+ ✔ Container ms-payroll-departments          Healthy              46.2s
+ ✔ Container ms-sales-customers              Healthy               7.2s
+ ✔ Container ms-payroll-employees-get        Healthy              45.7s
+ ✔ Container ms-api-gateway                  Started              46.1s
+```
+
+## Résultat à obtenir (après debug)
+
+Note : résultat obtenu hors de l'environnement AWS
+
+* Récupérer la liste des employées
+
+```
+curl -i -X GET dev.devopsteamxx.vir1.cld.education/api/v1/employees
+```
+
+```
+HTTP/1.1 200 
+Server: nginx
+Date: Wed, 20 May 2026 13:11:54 GMT
 Content-Type: application/json
-Content-Length: 51
+Transfer-Encoding: chunked
 Connection: keep-alive
 
-{"error":"Service temporarily unavailable"}
+[]                             --> liste vide
 ```
 
-* Try to use a http verb outside the application scope
+* Récupérer la liste des départements
 
 ```
-curl -X OPTIONS localhost
-```
-
-```
-<html>
-<head><title>405 Not Allowed</title></head>
-<body>
-<center><h1>405 Not Allowed</h1></center>
-<hr><center>nginx/1.29.4</center>
-</body>
-</html>
-```
-
----
-
-## Debug and analysis
-
-###  BuildKit issue (Windows)
-
-#### Symptom
-
-```dockerfile
-//issue when attempting to build the infra
-NotFound: forwarding Ping: no such job <jobid>
-```
-
-#### Resolution
-
-* Hard reset Docker build state
-
-```
-docker compose down --remove-orphans
-docker builder prune -f
-docker system prune -f
-```
-
-* Disable BuildKit state and retry
-
-```
-set DOCKER_BUILDKIT=0
-docker compose build
-docker compose up
-```
-
-### Check the composer log
-
-```
-docker compose logs -f <ms-name>
-```
-
-### Build only one microservice
-
-```
-docker compose build <microservice-name>
-```
-
-### How to test the database connectivity
-
-* Try from a payroll microservice
-
-```
-docker exec -it <microservice-name> sh
-apt update
-apt install -y mysql-client
-mysql -h <microservice-name hosting mysql> -u <username> -p<passwd> <database>
-```
-
-### How to check manually the health check
-
-* For the api gateway
-
-```
-docker exec -it ms-payroll-api-gateway curl http://localhost/health
+curl -i -X GET dev.devopsteamxx.vir1.cld.education/api/v1/departments
 ```
 
 ```
-curl http://localhost/health
+HTTP/1.1 200 
+Server: nginx
+Date: Wed, 20 May 2026 13:11:54 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+
+[]                             --> liste vide
+```
+
+
+* Récupérer la liste des clients
+
+```
+curl -i -X GET dev.devopsteamxx.vir1.cld.education/api/v1/customers
 ```
 
 ```
-//result expected
-OK
-```
+HTTP/1.1 200 OK
+Server: nginx
+Date: Wed, 20 May 2026 13:14:47 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 761
+Connection: keep-alive
+X-Powered-By: Express
+ETag: W/"2f9-NDqpuLwtyTT4/CPc7/RKw6PSGU4"
 
-* For the business microservices
-
-```
-docker exec -it ms-payroll-employees curl http://localhost:8080/actuator/health
-```
-
-```
-curl http://localhost:8080/actuator/health
-```
-
-```
-//result expected
-{"status":"UP","groups":["liveness","readiness"]}
+[{"id":1,"name":"Davis","firstname":"Elijah","phoneNumber":"+1-944-867-1271","emailAddress":"elijah.davis@mail.com","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":2,"name":"Harris","firstname":"Hannah","phoneNumber":"+1-692-603-8405","emailAddress":"hannah.harris@testmail.org","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":3,"name":"Jackson","firstname":"Sophia","phoneNumber":"+1-784-336-8217","emailAddress":"sophia.jackson@mail.com","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"},{"id":4,"name":"Anderson","firstname":"Emma","phoneNumber":"+1-620-679-4966","emailAddress":"emma.anderson@testmail.org","created_at":"2026-05-20 13:07:16","updated_at":"2026-05-20 13:07:16"}]
 ```
