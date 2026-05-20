@@ -1,0 +1,108 @@
+@startuml
+title Diagramme de classes - Microservice ms-products (3 Layers)
+
+' ========================
+' STYLES
+' ========================
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+
+' ========================
+' PRESENTATION LAYER
+' ========================
+package "Presentation Layer" {
+  class Router {
+    +initRoutes(): void
+  }
+
+  class ProductsRoute {
+    +registerRoutes(): void
+  }
+
+  class ProductController {
+    +getAll(req, res): void
+    +getById(req, res): void
+    +create(req, res): void
+    +update(req, res): void
+    +delete(req, res): void
+  }
+}
+
+' ========================
+' BUSINESS LAYER
+' ========================
+package "Business Layer" {
+  class ProductService {
+    +getAll(): [Product]
+    +getById(id: number): Product
+    +create(data: Product): Product
+    +update(id: number, data: Product): Product
+    +delete(id: number): boolean
+  }
+}
+
+' ========================
+' DATA LAYER
+' ========================
+package "Data Layer" {
+  class Product {
+    -id: number
+    -name: string
+    -price: number
+    -description: string
+    +getId(): number
+    +setId(id: number): void
+    +getName(): string
+    +setName(name: string): void
+    +getPrice(): number
+    +setPrice(price: number): void
+  }
+
+  class DatabaseConfig {
+    +connect(): Connection
+    +disconnect(): void
+  }
+}
+
+' ========================
+' CONFIGURATION & APP
+' ========================
+package "Application Core" {
+  class App {
+    +start(): void
+  }
+
+  class Server {
+    +listen(port: number): void
+  }
+
+  class SwaggerConfig {
+    +setupSwagger(app): void
+  }
+}
+
+' ========================
+' RELATIONS ENTRE COUCHES
+' ========================
+' Presentation -> Business
+ProductController --> ProductService
+
+' Business -> Data
+ProductService --> Product
+ProductService --> DatabaseConfig
+
+' Routes -> Controller
+ProductsRoute --> ProductController
+Router --> ProductsRoute
+
+' App -> Router & Config
+App --> Router
+App --> SwaggerConfig
+App --> DatabaseConfig
+
+' Server -> App
+Server --> App
+
+@enduml

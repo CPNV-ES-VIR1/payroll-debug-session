@@ -1,0 +1,25 @@
+@startuml
+title Foodtruck Management System - Simplified Reservation Model (Merged Reservation/Product)
+
+' === Entities ===
+class Product {
+}
+
+class Customer {
+}
+
+class Reservation {
+}
+
+' === Relationships ===
+' Customer ↔ Reservation (1:N, but only one active reservation per customer)
+Customer "1" -- "0..1" Reservation : orders >
+Reservation "1" --> "1" Product : references >
+
+' === Notes ===
+note right of Reservation
+Each Customer can have only one active reservation,
+a single rows here represent individual product
+within that single reservation.
+end note
+@enduml

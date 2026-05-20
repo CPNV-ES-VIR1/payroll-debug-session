@@ -1,0 +1,41 @@
+api-end-user-payroll [icon: user]
+api-end-user-sales[icon: user]
+
+DockerEngine [icon: aws-vpc] {
+  NETWORK-DMZ{
+    ms-api-gateway [icon: nginx]
+  }
+  NETWORK-PAYROLL-EMPLOYEES{
+      ms-payroll-employees-get[icon: spring]
+      ms-payroll-employees-post[icon: spring]
+      ms-payroll-employees-database [icon: mysql]
+      ms-payroll-employees-volume [icon: database]
+  }
+  NETWORK-PAYROLL-DEPARTMENTS{
+      ms-payroll-departments[icon: spring]
+      ms-payroll-departments-database [icon: mysql]
+      ms-payroll-departments-volume [icon: database]
+  }
+  NETWORK-SALES{
+      ms-customers[icon: express]
+      ms-customers-database[icon: sqlite]
+  }
+}
+
+// relations
+api-end-user-payroll   - ms-api-gateway : "80 : TCP \n/api/vx/employees  \n\n/api/vx/departments"
+
+api-end-user-sales   - ms-api-gateway : "80 : TCP \n\n/api/vx/customers"
+
+ms-api-gateway - ms-payroll-employees-get : "8080-get : TCP"
+ms-api-gateway - ms-payroll-employees-post : "8080-post : TCP"
+ms-payroll-employees-get - ms-payroll-employees-database : "3306 : TCP"
+ms-payroll-employees-post - ms-payroll-employees-database : "3306 : TCP"
+ms-payroll-employees-database - ms-payroll-employees-volume
+
+ms-api-gateway - ms-payroll-departments : "8080 : TCP"
+ms-payroll-departments - ms-payroll-departments-database : "3306 : TCP"
+ms-payroll-departments-database - ms-payroll-departments-volume
+
+ms-api-gateway - ms-customers : "3000 : TCP"
+ms-customers - ms-customers-database

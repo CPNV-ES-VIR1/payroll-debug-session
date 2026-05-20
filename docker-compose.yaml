@@ -1,0 +1,170 @@
+services:
+
+  # -----------------------------
+  # DB microservices
+  # -----------------------------
+  ms-payroll-employees-database:
+    &payroll-database
+    image: mysql:8.0
+    container_name: ms-payroll-employees-database
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${MYSQL_EMPLOYEES_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ${MYSQL_EMPLOYEES_VOLUME}:/var/lib/mysql
+    networks:
+      - payroll-employees
+    healthcheck:
+      test: [
+        "CMD",
+        "mysqladmin",
+        "ping",
+        "-h",
+        "localhost",
+        "-u",
+        "root",
+        "-p${MYSQL_ROOT_PASSWORD}"
+      ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ms-payroll-departments-database:
+    <<: *payroll-database
+    container_name: ms-payroll-departments-database
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DEPARTMENTS_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ${MYSQL_DEPARTMENTS_VOLUME}:/var/lib/mysql
+    networks:
+      - payroll-departments
+
+  # -----------------------------
+  # Employee microservices
+  # -----------------------------
+  ms-payroll-employees-get:
+    &spring-microservice
+    build: microservices/payroll/employees-get
+    container_name: ms-payroll-employees-get
+    depends_on:
+      ms-payroll-employees-database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_EMPLOYEES_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
+    networks:
+      - payroll-employees
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ms-payroll-employees-post:
+    &spring-microservice
+    build: microservices/payroll/employees-post
+    container_name: ms-payroll-employees-post
+    depends_on:
+      ms-payroll-employees-database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_EMPLOYEES_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
+    networks:
+      - payroll-employees
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # -----------------------------
+  # Departments microservices
+  # -----------------------------
+  ms-payroll-departments:
+    <<: *spring-microservice
+    build: microservices/payroll/departments
+    container_name: ms-payroll-departments
+    depends_on:
+      ms-payroll-departments-database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DEPARTMENTS_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
+    networks:
+      - payroll-departments
+
+  # -----------------------------
+  # Customers microservice
+  # -----------------------------
+  ms-customers:
+    build:
+      context: microservices/sales/customers
+    container_name: ms-sales-customers
+    networks:
+      - sales
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # -----------------------------
+  # Nginx API Gateway
+  # -----------------------------
+  ms-api-gateway:
+    build: microservices/dmz/api-gateway
+    container_name: ms-api-gateway
+    ports:
+      - "${NGINX_PORT}:80"
+    depends_on:
+      ms-payroll-employees-get:
+        condition: service_healthy
+      ms-payroll-employees-post:
+        condition: service_healthy
+      ms-customers:
+        condition: service_healthy
+      ms-payroll-departments:
+        condition: service_healthy
+    networks:
+      - dmz
+      - payroll-employees
+      - payroll-departments
+      - sales
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  dmz:
+    driver: bridge
+  payroll-employees:
+    driver: bridge
+    internal : true
+  payroll-departments:
+    driver: bridge
+    internal : true
+  sales:
+    driver: bridge
+    internal : true
+
+volumes:
+  payroll-employees-data:
+  payroll-departments-data:
