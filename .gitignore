@@ -1,0 +1,5 @@
+### IntelliJ IDEA ###
+.idea
+
+### Credentials and senstive data
+.env
